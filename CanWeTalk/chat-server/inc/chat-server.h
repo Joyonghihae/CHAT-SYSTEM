@@ -38,6 +38,6 @@ pthread_mutex_t mtx;
 int startServer();
 void* clientThread(void *clientSocket);
 void broadcast(MESSAGE *message);
-
+void addMasterList(MasterList* clist, int clientSocket);
 
 #endif
