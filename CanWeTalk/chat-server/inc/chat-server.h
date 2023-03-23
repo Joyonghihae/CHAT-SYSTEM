@@ -18,26 +18,27 @@
 
 typedef struct client_info
 {
-  int socket; // file descriptor
-  char ipAddress[ID_SIZE * 4];
-  char userID[ID_SIZE];
+	int socket; // file descriptor
+	int port;
+	char ipAddress[ID_SIZE * 4];
+	char userID[ID_SIZE];
+	// char message[BUFFER_SIZE];
 } ClientInfo;
 
 typedef struct master_list
 {
-  int client_connections;
+	int client_connections;
 	ClientInfo clients[MAX_CLIENTS];
 } MasterList;
 
-static int nClients = 0;
-static int nNoConnections[MAX_CLIENTS];
-
+MasterList* clientsMasterList;
 pthread_mutex_t mtx;
+static int server_run = TRUE;
 
 // function prototype
 int startServer();
-void* clientThread(void *clientSocket);
-void broadcast(MESSAGE *message);
-void addMasterList(MasterList* clist, int clientSocket);
+void* clientThread(void* socket);
+void collapseMasterList(int clientSocket);
+void broadcast(MESSAGE* message);
 
 #endif
