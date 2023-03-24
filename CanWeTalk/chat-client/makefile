@@ -6,7 +6,7 @@
 
 # FINAL BINARY TARGET
 ./bin/chat-client.o: ./obj/chat-client.o ./obj/clientOperation.o ./obj/common.o
-	cc ./obj/chat-client.o ./obj/clientOperation.o ./obj/common.o -o ../Common/bin/chat-client
+	cc ./obj/chat-client.o ./obj/clientOperation.o ./obj/common.o -lncurses -o ../Common/bin/chat-client
 
 # DEPENDENCIES
 ./obj/chat-client.o: ./src/chat-client.c ./inc/chat-client.h

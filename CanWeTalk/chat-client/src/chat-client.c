@@ -2,88 +2,74 @@
 // PROJECT       : CanWeTalk
 // programmer    : Euyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
 // FIRST VERSION : 2023-03-18
-// DESCRIPTION   : This is an application that
+// DESCRIPTION   : This is a chat-client.c file for chat-client application of CanWeTalk System.
+// chat-client application uses ncurese UI and receives user message input,
+// and send the message to the server.
 
 #include "../inc/chat-client.h"
 
-int main (int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-  int my_server_socket, len, done;
-  struct sockaddr_in server_addr;
-  MESSAGE client_message;
-  struct hostent*    host;
+    struct hostent* host;
+    char user[ID_SIZE];
 
-  // char timestamp[BUFFER_SIZE] = { 0 };
-  // time_t rawtime;
-  // struct tm* timeinfo;
-  // time(&rawtime);
-  // timeinfo = localtime(&rawtime);
-  //
-  // sprintf(timestamp, "[%04d-%02d-%02d %02d:%02d:%02d]\n",
-  // timeinfo->tm_year+1900, timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    //ncurses
+    WINDOW* chat_title_win;
+    WINDOW* chat_win;
+    WINDOW* msg_title_win;
+    WINDOW* msg_win;
+    int chat_startx, chat_starty, chat_width, chat_height;
+    int msg_startx, msg_starty, msg_width, msg_height, i;
 
 
-  if (argc != 3)
-  {
-    printf ("USAGE : chat-client -user<userID> -server<server name>\n");
-    return 1;
-  }
 
-  if ((host = gethostbyname(argv[2])) == NULL)
-  {
-    printf ("[CLIENT] : Host Info Search - FAILED\n");
-    return 2;
-  }
+    char timestamp[BUFFER_SIZE] = { 0 };
+    time_t rawtime;
+    struct tm* timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    sprintf(timestamp, "(%02d:%02d:%02d)\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
-  // set user ID
-  memcpy(&client_message.id, argv[1], ID_SIZE);
-  printf("ID: %s\n", client_message.id);
-  // initialize server address
-  memset (&server_addr, 0, sizeof (server_addr));
-  server_addr.sin_family = AF_INET;
-  memcpy (&server_addr.sin_addr, host->h_addr, host->h_length); // copy the host's internal IP addr into the server_addr struct
-  server_addr.sin_port = htons (PORT);
+    if (argc != 3)
+    {
+        printf("USAGE : chat-client -user<userID> -server<server name>\n");
+        return 1;
+    }
+    if ((host = gethostbyname(argv[2])) == NULL)
+    {
+        printf("[CLIENT] : Host Info Search - FAILED\n");
+        return 2;
+    }
 
-  printf ("[CLIENT] : Getting STREAM Socket to talk to SERVER\n");
-  fflush(stdout);
-  if ((my_server_socket = socket (AF_INET, SOCK_STREAM, 0)) < 0)
-  {
-    printf ("[CLIENT] : Getting Client Socket - FAILED\n");
-    return 3;
-  }
+    // SANITY CHECK FOR USERID IPADDRESS
+    // id no more than 5, ipAddress
+    strcpy(user, argv[1]);
 
-  printf ("[CLIENT] : Connecting to SERVER\n");
-  fflush(stdout);
-  if (connect (my_server_socket, (struct sockaddr *)&server_addr,sizeof (server_addr)) < 0)
-  {
-    printf ("[CLIENT] : Connect to Server - FAILED\n");
-    close (my_server_socket);
-    return 4;
-  }
-  done = TRUE;
-  while(done == TRUE)
-  {
-     memset(buffer, 0, BUFFER_SIZE);
-     fgets (buffer, sizeof (buffer), stdin);
-     if (buffer[strlen (buffer) - 1] == '\n')
-     {
-       buffer[strlen (buffer) - 1] = '\0';
-       memcpy(&client_message.chat, buffer, sizeof(buffer));
-     }
-     if(strcmp(buffer,"quit") == 0)
-     {
-       send(my_server_socket, (void *)&client_message, sizeof(client_message), FLAG);
-       done = 0;
-     }
-     else
-     {
-       send(my_server_socket, (void *)&client_message, sizeof(client_message), FLAG);
-       len = recv(my_server_socket, (void *)&client_message, sizeof(client_message), FLAG);
 
-     }
-  }
 
-  close (my_server_socket);
-  printf ("[CLIENT] : I'm outta here !\n");
-  return 0;
+
+
+    initscr();  // initialize the ncurses data structure
+    cbreak();   // set the input mode for the terminal
+    noecho();   // control whether characters typed by the user
+    refresh();  // copy the window to the physical terminal screen
+
+    chat_height = 5;
+    chat_width = COLS - 2;
+    chat_startx = 1;
+    chat_starty = LINES - chat_height;
+    msg_height = LINES - chat_height - 1;
+    msg_width = COLS;
+    msg_startx = 0;
+    msg_starty = 0;
+
+    // create ncurses windows
+    msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx);
+    scrollok(msg_win, TRUE);
+    chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx);
+    scrollok(chat_win, TRUE);
+
+    startClient(host, user, chat_win, msg_win);
+
+    return 0;
 }
