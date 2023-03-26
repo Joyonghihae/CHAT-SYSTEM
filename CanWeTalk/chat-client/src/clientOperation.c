@@ -82,29 +82,29 @@ int startClient(struct hostent* host, MESSAGE* msg)
         memset(buffer, 0, BUFFER_SIZE);
         input_win(chat_win, buffer);
         // 10 messages before scroll
-        display_win(msg_win, buffer, 0, shouldBlank);
+        display_win(msg_win, msg->chat, 0, shouldBlank);
         input_length = strlen(buffer);
         if (buffer[strlen(buffer) - 1] == '\n')
         {
             buffer[strlen(buffer) - 1] = '\0';
-            //memcpy(msg->chat, buffer, sizeof(buffer));
+            memcpy(msg->chat, buffer, sizeof(buffer));
         }
         else
         {
-            //memcpy(msg->chat, buffer, sizeof(buffer));
+            memcpy(msg->chat, buffer, sizeof(buffer));
         }
 
         if (strcmp(buffer, ">>bye<<") == 0)
         {
-            send(sckt, (void*)msg, sizeof(*msg), FLAG);
+            send(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
             client_run = 0;
         }
         else
         {
-            send(sckt, (void*)msg, sizeof(*msg), FLAG);
-            received_length = recv(sckt, (void*)msg, sizeof(*msg), FLAG);
+            send(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
+            received_length = recv(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
 
-            display_win(msg_win, buffer, 0, shouldBlank);
+            display_win(msg_win, msg->chat, 0, shouldBlank);
         }
     }
 
@@ -116,8 +116,6 @@ int startClient(struct hostent* host, MESSAGE* msg)
     close(sckt);
     return 1;
 }
-
-
 
 
 

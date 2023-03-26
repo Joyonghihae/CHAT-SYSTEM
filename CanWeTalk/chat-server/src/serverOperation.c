@@ -4,6 +4,7 @@
 // FIRST VERSION : 2023-03-18
 // DESCRIPTION   : This is an internet server application that will respond
 // to requests on port 5000
+// REFERENCE     : ncurses - splitWin.c is a simple example to show how to deal with split screens. Sam Hsu (11/17/10)
 
 
 #include "../inc/chat-server.h"
@@ -214,7 +215,7 @@ void broadcast(MESSAGE* message)
 
     for (counter = 0; counter < clientsMasterList->client_connections; counter++)
     {
-        send(clientsMasterList->clients[counter].socket, message, sizeof(message), FLAG);
+        send(clientsMasterList->clients[counter].socket, message, sizeof(MESSAGE), FLAG);
     }
-    printf("Broadcast message: %s\n", message->chat);
+    printf("Broadcast ipAdd:%s id:%s message:%s\n", message->ipAddress, message->id, message->chat);
 }
