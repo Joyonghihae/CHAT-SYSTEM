@@ -13,7 +13,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <ncurses.h>
-#include <curses.h>
 
 
 WINDOW* create_newwin(int, int, int, int);
@@ -23,6 +22,6 @@ void display_win(WINDOW*, char*, int, int);
 void destroy_win(WINDOW* win);
 void blankWin(WINDOW* win);
 
-int startClient(struct hostent* host, char* id, WINDOW* chat_win, WINDOW* msg_win);
+int startClient(struct hostent* host, MESSAGE* msg);
 
 #endif

@@ -11,65 +11,94 @@
 int main(int argc, char* argv[])
 {
     struct hostent* host;
-    char user[ID_SIZE];
+    struct in_addr ip_address;
+    char user[ID_SIZE + 1];
+    char ipAdd[IP_SIZE];
+    char usage[] = "USAGE : chat-client -user<userID> -server<server name>\n";
+    char sanityBuffer[25];
+    int argv_server_length = 7;
+    int argv_length = 0;
+    int ret_val = 0;
 
-    //ncurses
-    WINDOW* chat_title_win;
-    WINDOW* chat_win;
-    WINDOW* msg_title_win;
-    WINDOW* msg_win;
-    int chat_startx, chat_starty, chat_width, chat_height;
-    int msg_startx, msg_starty, msg_width, msg_height, i;
+    MESSAGE client_message = { 0 };
 
-
-
-    char timestamp[BUFFER_SIZE] = { 0 };
+    // time stamps
+    char timestamp[11] = { 0 };
     time_t rawtime;
     struct tm* timeinfo;
     time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    sprintf(timestamp, "(%02d:%02d:%02d)\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
+    timeinfo = localtime(&rawtime);
+    sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+
+    // cmd args sanity check
     if (argc != 3)
     {
-        printf("USAGE : chat-client -user<userID> -server<server name>\n");
-        return 1;
+        printf("1 %s\n", usage);
+        return -1;
     }
-    if ((host = gethostbyname(argv[2])) == NULL)
+    // check argv[1]
+    else
     {
-        printf("[CLIENT] : Host Info Search - FAILED\n");
-        return 2;
+        argv_length = strlen(argv[1]);
+        if (argv_length == 5 || argv_length > 10)
+        {
+            printf("2 %s\n", usage);
+            return -1;
+        }
     }
 
-    // SANITY CHECK FOR USERID IPADDRESS
-    // id no more than 5, ipAddress
-    strcpy(user, argv[1]);
+    // check -user
+    strncpy(sanityBuffer, argv[1], ID_SIZE);
+    sanityBuffer[ID_SIZE] = '\0';
+    if (strcmp(sanityBuffer, "-user") != 0)
+    {
+        printf("3 %s\n", usage);
+        return -1;
+    }
+    else
+    {
+        strcpy(sanityBuffer, argv[1]);
+        strncpy(user, sanityBuffer + ID_SIZE, strlen(sanityBuffer) - ID_SIZE + 1);
+        printf("user: %s\n", user);
+    }
+    // check argv[2]
+    strncpy(sanityBuffer, argv[2], argv_server_length);
+    sanityBuffer[argv_server_length] = '\0';
+    if (strcmp(sanityBuffer, "-server") != 0)
+    {
+        printf("4 %s\n", usage);
+        return -1;
+    }
+    else
+    {
+        strcpy(sanityBuffer, argv[2]);
+        strncpy(ipAdd, sanityBuffer + argv_server_length, strlen(sanityBuffer) - argv_server_length + 1);
+        printf("ipAdd: %s\n", ipAdd);
+    }
+
+    // get hostent structure with the hostname
+    if ((host = gethostbyname(ipAdd)) == NULL)
+    {
+        // convert IPaddress to the hostname
+        inet_aton(ipAdd, &ip_address);
+        if ((host = gethostbyaddr(&ip_address, sizeof(ip_address), AF_INET)) == NULL)
+        {
+            printf("[CLIENT ERROR] : Host/IP Address information\n");
+            return 2;
+        }
+    }
+    else
+    {
+        strcpy(client_message.id, user);
+        strcpy(client_message.ipAddress, ipAdd);
+        printf("start server user: %s, ipAdd %s\n", client_message.id, client_message.ipAddress);
+
+        ret_val = startClient(host, &client_message);
+        printf("startclient return: %d\n", ret_val);
+    }
 
 
-
-
-
-    initscr();  // initialize the ncurses data structure
-    cbreak();   // set the input mode for the terminal
-    noecho();   // control whether characters typed by the user
-    refresh();  // copy the window to the physical terminal screen
-
-    chat_height = 5;
-    chat_width = COLS - 2;
-    chat_startx = 1;
-    chat_starty = LINES - chat_height;
-    msg_height = LINES - chat_height - 1;
-    msg_width = COLS;
-    msg_startx = 0;
-    msg_starty = 0;
-
-    // create ncurses windows
-    msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx);
-    scrollok(msg_win, TRUE);
-    chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx);
-    scrollok(chat_win, TRUE);
-
-    startClient(host, user, chat_win, msg_win);
 
     return 0;
 }

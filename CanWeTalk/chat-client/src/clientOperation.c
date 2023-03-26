@@ -2,25 +2,35 @@
 // PROJECT       : CanWeTalk
 // programmer    : Euyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
 // FIRST VERSION : 2023-03-18
-// DESCRIPTION   : This clientOperation.c file is to 
+// DESCRIPTION   : This clientOperation.c file is to
 
 #include "../inc/chat-client.h"
 
-int startClient(struct hostent* host, char* id, WINDOW* chat_win, WINDOW* msg_win)
+int startClient(struct hostent* host, MESSAGE* msg)
 {
-    int my_server_socket, len, done;
+    int sckt = 0;
+    int received_length = 0;
+    size_t input_length = 0;
+    int client_run = FALSE;
     struct sockaddr_in server_addr;
-    MESSAGE client_message;
 
     int i;
     int shouldBlank = 0;
     char buf[BUFSIZ];
 
     char buffer[BUFFER_SIZE];
-    pthread_t outgoing_window, incoming_window;
+    pthread_t outgoing_window;
+    pthread_t incoming_window;
 
-    // set user ID
-    memcpy(&client_message.id, id, ID_SIZE);
+    // ncurses
+    WINDOW* chat_title_win;
+    WINDOW* chat_win;
+    WINDOW* msg_title_win;
+    WINDOW* msg_win;
+
+    //LINES, COLS deindesd in <ncurses.h>, filled in by initscr with the size of the screen
+    int chat_startx, chat_starty, chat_width, chat_height;
+    int msg_startx, msg_starty, msg_width, msg_height;
 
     // initialize server address
     memset(&server_addr, 0, sizeof(server_addr));
@@ -29,49 +39,72 @@ int startClient(struct hostent* host, char* id, WINDOW* chat_win, WINDOW* msg_wi
     server_addr.sin_port = htons(PORT);
 
     // get client socket
-    if ((my_server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((sckt = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        // printf ("[CLIENT] : Getting Client Socket - FAILED\n");
+        // printf ("[CLIENT ERROR] Getting Client Socket\n");
         return 3;
     }
 
     // connect to server
-    if (connect(my_server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+    if (connect(sckt, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
-        // printf ("[CLIENT] : Connect to Server - FAILED\n");
-        close(my_server_socket);
+        printf("[CLIENT ERROR] Connect to Server\n");
+        close(sckt);
         return 4;
     }
-    done = TRUE;
-    while (done == TRUE)
+
+    // if connected to server, then ncurses start
+    initscr();  // initialize the ncurses data structure
+    cbreak();   // set the input mode for the terminal
+    noecho();   // control whether characters typed by the user
+    refresh();  // copy the window to the physical terminal screen
+
+    chat_height = 5;
+    chat_width = COLS - 2;
+    chat_startx = 1;
+    chat_starty = LINES - chat_height;
+
+    msg_height = LINES - chat_height - 1;
+    msg_width = COLS;
+    msg_startx = 0;
+    msg_starty = 0;
+
+
+    // create ncurses windows
+    msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx);
+    scrollok(msg_win, TRUE); // enable scrollig
+    chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx);
+    scrollok(chat_win, TRUE);
+
+    client_run = TRUE;
+    while (client_run == TRUE)
     {
         memset(buffer, 0, BUFFER_SIZE);
-
         input_win(chat_win, buffer);
-        display_win(msg_win, buffer, i, shouldBlank);
-
-        // fgets (buffer, sizeof (buffer), stdin);
+        // 10 messages before scroll
+        display_win(msg_win, buffer, 0, shouldBlank);
+        input_length = strlen(buffer);
         if (buffer[strlen(buffer) - 1] == '\n')
         {
             buffer[strlen(buffer) - 1] = '\0';
-            memcpy(&client_message.chat, buffer, sizeof(buffer));
+            //memcpy(msg->chat, buffer, sizeof(buffer));
         }
         else
         {
-            memcpy(&client_message.chat, buffer, sizeof(buffer));
+            //memcpy(msg->chat, buffer, sizeof(buffer));
         }
 
         if (strcmp(buffer, ">>bye<<") == 0)
         {
-            send(my_server_socket, (void*)&client_message, sizeof(client_message), FLAG);
-            done = 0;
+            send(sckt, (void*)msg, sizeof(*msg), FLAG);
+            client_run = 0;
         }
         else
         {
-            send(my_server_socket, (void*)&client_message, sizeof(client_message), FLAG);
-            len = recv(my_server_socket, (void*)&client_message, sizeof(client_message), FLAG);
+            send(sckt, (void*)msg, sizeof(*msg), FLAG);
+            received_length = recv(sckt, (void*)msg, sizeof(*msg), FLAG);
 
-            display_win(msg_win, buf, i, shouldBlank);
+            display_win(msg_win, buffer, 0, shouldBlank);
         }
     }
 
@@ -80,7 +113,7 @@ int startClient(struct hostent* host, char* id, WINDOW* chat_win, WINDOW* msg_wi
     destroy_win(msg_win);
     endwin();
 
-    close(my_server_socket);
+    close(sckt);
     return 1;
 }
 
@@ -141,6 +174,7 @@ void input_win(WINDOW* win, char* word)
         }
     }
 }  /* input_win */
+
 
 void display_win(WINDOW* win, char* word, int whichRow, int shouldBlank)
 {

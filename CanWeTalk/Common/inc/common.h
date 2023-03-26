@@ -23,15 +23,17 @@
 #define BUFFER_SIZE 80
 #define LOG_BUFFER_SIZE 256
 #define ID_SIZE 5
+#define IP_SIZE 16
 #define TRUE 1
 #define FALSE 0
 #define FLAG 0
 #define SERVER 's'
 
-//
 typedef struct message
 {
-	char ipAddress[ID_SIZE * 4];
-	char id[ID_SIZE];
+	char ipAddress[IP_SIZE];
+	char id[ID_SIZE + 1];
 	char chat[BUFFER_SIZE];
 } MESSAGE;
+
+int writeLogFile(char appType, char* logText);
