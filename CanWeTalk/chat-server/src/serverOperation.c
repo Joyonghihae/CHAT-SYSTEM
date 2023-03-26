@@ -100,28 +100,16 @@ int startServer()
         clientsMasterList->client_connections++;
         pthread_mutex_unlock(&mtx);
 
-        //create thread to be responsible for incoming  message the user and broadcasting to all users
+        // create thread to be responsible for incoming  message the user and broadcasting to all users
         if (pthread_create(&(tid[thread_index]), NULL, clientThread, (void*)&client_socket))
         {
             sprintf(logText, "[SERVER ERROR-5] thread creation\n");
             return -5;
         }
         printf("thread creation for client %d\n", thread_index + 1);
-
         // release resources, detach does not requires the main thread join() with child thread. Server does not wait for each thread completion. so server handles the next client connection.
         pthread_detach(tid[thread_index]);
 
-        // the number of threads reaches zero in the server, it must shutdown properly - stop accept connection
-        // and clean up any and all resource - free malloc and close socket
-        pthread_mutex_lock(&mtx);
-        if (clientsMasterList->client_connections == 0)
-        {
-            server_run = FALSE;
-            printf("server_run = %d\n", server_run);
-            break;
-        }
-        pthread_mutex_unlock(&mtx);
-        printf("server_run = is not false\n");
     }
 
     free(clientsMasterList);
@@ -140,32 +128,43 @@ void* clientThread(void* socket)
     int clientSocket = *((int*)socket);
     int numBytesRead = 0;
     int counter = 0;
+    int threadIndex = 0;
     char msg[40];
     char quit[] = ">>bye<<";
     MESSAGE message_received;
+    pthread_t receive_thread[MAX_CLIENTS];
+    pthread_t broadcast_thread[MAX_CLIENTS];
 
-    // receive message from client and broadcast the message to clients
-    numBytesRead = recv(clientSocket, &message_received, sizeof(message_received), FLAG);
-    while (strcmp(message_received.chat, quit) != 0)
+    while (1)
     {
-        // printf("byteread: %d\t %s\n", numBytesRead, message_received.chat);
-        broadcast(&message_received);
+        // receive message from client and broadcast the message to clients
         numBytesRead = recv(clientSocket, &message_received, sizeof(message_received), FLAG);
+        if (numBytesRead == 0 || strcmp(message_received.chat, quit) == 0)
+        {
+            // collapse MasterList, remove the client
+            pthread_mutex_lock(&mtx);
+            collapseMasterList(clientSocket);
+            close(clientSocket);
+            clientsMasterList->client_connections--;
+            if (clientsMasterList->client_connections == 0)
+            {
+                server_run = FALSE;
+                printf("serverrun=false\n");
+            }
+            printf("%d socket is closed and after collapse client no is %d\n", clientSocket, clientsMasterList->client_connections);
+            pthread_mutex_unlock(&mtx);
+            break;
+        }
+        else {
+            // printf("byteread: %d\t %s\n", numBytesRead, message_received.chat);
+            broadcast(&message_received);
+        }
+
     }
-    // printf("out of scope: byteread: %d\t %s\n", numBytesRead, message_received.chat);
-    // collapse MasterList, remove the client
-    pthread_mutex_lock(&mtx);
-    collapseMasterList(clientSocket);
-    close(clientSocket);
-    clientsMasterList->client_connections--;
-
-    printf("%d socket is closed and after collapse client no is %d\n", clientSocket, clientsMasterList->client_connections);
-    pthread_mutex_unlock(&mtx);
-
-    printf("thread exit");
+    printf("thread exit\n");
     pthread_exit(NULL);
-
 }
+
 
 // FUNCTION   : collapseMasterList()
 // DESCRIPTION: This function updates struct mlist of struct MasterList
@@ -199,6 +198,7 @@ void collapseMasterList(int clientSocket)
             break;
         }
     }
+
 }
 
 

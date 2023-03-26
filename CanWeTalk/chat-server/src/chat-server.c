@@ -8,14 +8,17 @@
 #include "../inc/chat-server.h"
 
 
-int main (void)
+int main(void)
 {
-  // initiate mutex
-  pthread_mutex_init(&mtx, NULL);
-  // start server
-  startServer();
-  // Destroy mutex
-  pthread_mutex_destroy(&mtx);
+	int retValue = 0;
 
-  return 0;
+	// initiate mutex
+	pthread_mutex_init(&mtx, NULL);
+	// start server
+	retValue = startServer();
+	printf("startserver: %d\n", retValue);
+	// Destroy mutex
+	pthread_mutex_destroy(&mtx);
+
+	return 0;
 }

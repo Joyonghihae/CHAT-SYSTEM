@@ -19,7 +19,7 @@
 #include <netdb.h>
 
 
-#define PORT 5000
+#define PORT 3000
 #define BUFFER_SIZE 80
 #define LOG_BUFFER_SIZE 256
 #define ID_SIZE 5
@@ -29,6 +29,7 @@
 #define FLAG 0
 #define SERVER 's'
 
+//
 typedef struct message
 {
 	char ipAddress[IP_SIZE];

@@ -14,7 +14,7 @@ int startClient(struct hostent* host, MESSAGE* msg)
     int client_run = FALSE;
     struct sockaddr_in server_addr;
 
-    int i;
+    int chat_line = 0;
     int shouldBlank = 0;
     char buf[BUFSIZ];
 
@@ -49,14 +49,16 @@ int startClient(struct hostent* host, MESSAGE* msg)
     if (connect(sckt, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
         printf("[CLIENT ERROR] Connect to Server\n");
+        perror("binding error");
+        exit(EXIT_FAILURE);
         close(sckt);
-        return 4;
+        // return 4;
     }
 
     // if connected to server, then ncurses start
     initscr();  // initialize the ncurses data structure
     cbreak();   // set the input mode for the terminal
-    noecho();   // control whether characters typed by the user
+    noecho();   // do not echo() while do getch
     refresh();  // copy the window to the physical terminal screen
 
     chat_height = 5;
@@ -64,8 +66,8 @@ int startClient(struct hostent* host, MESSAGE* msg)
     chat_startx = 1;
     chat_starty = LINES - chat_height;
 
-    msg_height = LINES - chat_height - 1;
-    msg_width = COLS;
+    msg_height = 10;
+    msg_width = 80;
     msg_startx = 0;
     msg_starty = 0;
 
@@ -81,8 +83,9 @@ int startClient(struct hostent* host, MESSAGE* msg)
     {
         memset(buffer, 0, BUFFER_SIZE);
         input_win(chat_win, buffer);
+        chat_line++;
         // 10 messages before scroll
-        display_win(msg_win, msg->chat, 0, shouldBlank);
+        display_win(msg_win, msg->chat, chat_line, shouldBlank);
         input_length = strlen(buffer);
         if (buffer[strlen(buffer) - 1] == '\n')
         {
@@ -94,6 +97,7 @@ int startClient(struct hostent* host, MESSAGE* msg)
             memcpy(msg->chat, buffer, sizeof(buffer));
         }
 
+        //THREAD TO HANDLE OUTGOIN AND THREAD TO HANDLE THE INCOMMING
         if (strcmp(buffer, ">>bye<<") == 0)
         {
             send(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
