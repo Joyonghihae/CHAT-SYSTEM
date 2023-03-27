@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 {
     struct hostent* host;
     struct in_addr ip_address;
-    char user[ID_SIZE + 1];
+
     char ipAdd[IP_SIZE];
     char usage[] = "USAGE : chat-client -user<userID> -server<server name>\n";
     char sanityBuffer[25];
@@ -22,14 +22,6 @@ int main(int argc, char* argv[])
 
     MESSAGE client_message = { 0 };
 
-    // time stamps
-    char timestamp[11] = { 0 };
-    time_t rawtime;
-    struct tm* timeinfo;
-    time(&rawtime);
-
-    timeinfo = localtime(&rawtime);
-    sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
     // cmd args sanity check
     if (argc != 3)
@@ -91,14 +83,13 @@ int main(int argc, char* argv[])
     else
     {
         strcpy(client_message.id, user);
-        strcpy(client_message.ipAddress, ipAdd);
+
+        strcpy(client_message.ipAddress, inet_ntoa(ip_address));
         printf("start server user: %s, ipAdd %s\n", client_message.id, client_message.ipAddress);
 
         ret_val = startClient(host, &client_message);
         printf("startclient return: %d\n", ret_val);
     }
-
-
 
     return 0;
 }

@@ -13,6 +13,12 @@ int startClient(struct hostent* host, MESSAGE* msg)
     size_t input_length = 0;
     int client_run = FALSE;
     struct sockaddr_in server_addr;
+    // time stamps
+    time_t rawtime;
+    struct tm* timeinfo;
+
+
+    char timestamp[11] = { 0 };
 
     int chat_line = 0;
     int shouldBlank = 0;
@@ -61,31 +67,30 @@ int startClient(struct hostent* host, MESSAGE* msg)
     noecho();   // do not echo() while do getch
     refresh();  // copy the window to the physical terminal screen
 
-    chat_height = 5;
-    chat_width = COLS - 2;
-    chat_startx = 1;
-    chat_starty = LINES - chat_height;
-
-    msg_height = 10;
+    msg_height = 13;
     msg_width = 80;
     msg_startx = 0;
     msg_starty = 0;
 
+    chat_height = 5;
+    chat_width = COLS - 2;
+    chat_starty = LINES - chat_height;
+    chat_startx = 1;
 
     // create ncurses windows
-    msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx);
+    msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx, 'm');
     scrollok(msg_win, TRUE); // enable scrollig
-    chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx);
+    chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx, 'c');
     scrollok(chat_win, TRUE);
+
 
     client_run = TRUE;
     while (client_run == TRUE)
     {
+
         memset(buffer, 0, BUFFER_SIZE);
-        input_win(chat_win, buffer);
-        chat_line++;
         // 10 messages before scroll
-        display_win(msg_win, msg->chat, chat_line, shouldBlank);
+        input_win(chat_win, buffer);
         input_length = strlen(buffer);
         if (buffer[strlen(buffer) - 1] == '\n')
         {
@@ -107,9 +112,16 @@ int startClient(struct hostent* host, MESSAGE* msg)
         {
             send(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
             received_length = recv(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
-
-            display_win(msg_win, msg->chat, 0, shouldBlank);
+            //display_win(msg_win, msg->chat, 0, shouldBlank);
         }
+
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+        // if user is same with id
+        display_win(msg_win, timestamp, chat_line, shouldBlank, msg);
+        chat_line++;
+
     }
 
     sleep(2);                   /* to get a delay */
@@ -123,18 +135,25 @@ int startClient(struct hostent* host, MESSAGE* msg)
 
 
 
-
-
-
-WINDOW* create_newwin(int height, int width, int starty, int startx)
+WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
 {
     WINDOW* local_win;
 
-    local_win = newwin(height, width, starty, startx);
-    box(local_win, 0, 0);               /* draw a box */
-
-    wmove(local_win, 1, 1);             /* position cursor at top */
-    wrefresh(local_win);
+    if (type == 'c')
+    {
+        local_win = newwin(height, width, starty, startx);
+        box(local_win, 0, 0);     // draw box
+        mvwprintw(local_win, 1, 3, "> ");
+        //wmove(local_win, 1, 1);   // position cursor at top
+        wrefresh(local_win);
+    }
+    else
+    {
+        local_win = newwin(height, width, starty, startx);
+        box(local_win, 0, 0);     // draw box
+        wmove(local_win, 1, 1);   // position cursor at top
+        wrefresh(local_win);
+    }
     return local_win;
 }
 
@@ -144,10 +163,12 @@ void input_win(WINDOW* win, char* word)
     int i, ch;
     int maxrow, maxcol, row = 1, col = 0;
 
-    blankWin(win);                          /* make it a clean window */
-    getmaxyx(win, maxrow, maxcol);          /* get window size */
+    blankWin(win);                  // make it a clean window
+    getmaxyx(win, maxrow, maxcol);  // get window size
     bzero(word, BUFSIZ);
-    wmove(win, 1, 1);                       /* position cusor at top */
+    wmove(win, 1, 1);
+    wprintw(win, "> ");
+
     for (i = 0; (ch = wgetch(win)) != '\n'; i++)
     {
         word[i] = ch;                       /* '\n' not copied */
@@ -178,11 +199,20 @@ void input_win(WINDOW* win, char* word)
 }  /* input_win */
 
 
-void display_win(WINDOW* win, char* word, int whichRow, int shouldBlank)
+void display_win(WINDOW* win, char* word, int whichRow, int shouldBlank, MESSAGE* msg)
 {
-    if (shouldBlank == 1) blankWin(win);                /* make it a clean window */
-    wmove(win, (whichRow + 1), 1);                       /* position cusor at approp row */
-    wprintw(win, word);
+    if (shouldBlank == 1) blankWin(win); // make it a clean window
+    wmove(win, (whichRow + 1), 1);      // position cusor at approp row
+
+    if (strcmp(msg->id, user) == 0)
+    {
+        wprintw(win, "%-16s[%-5s] >> %-40s %10s", msg->ipAddress, msg->id, msg->chat, word);
+    }
+    else
+    {
+        wprintw(win, "%-16s[%-5s] << %-40s %10s", msg->ipAddress, msg->id, msg->chat, word);
+    }
+
     wrefresh(win);
 } /* display_win */
 

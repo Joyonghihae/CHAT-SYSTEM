@@ -19,7 +19,7 @@
 #include <netdb.h>
 
 
-#define PORT 3000
+#define PORT 1024
 #define BUFFER_SIZE 80
 #define LOG_BUFFER_SIZE 256
 #define ID_SIZE 5
