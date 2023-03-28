@@ -141,6 +141,9 @@ void* clientThread(void* socket)
     {
         // receive message from client and broadcast the message to clients
         numBytesRead = recv(clientSocket, &message_received, sizeof(MESSAGE), FLAG);
+        // find the ip address for the socket and update message struct. IP add
+
+
         if (numBytesRead == 0 || strcmp(message_received.chat, quit) == 0)
         {
             // collapse MasterList, remove the client

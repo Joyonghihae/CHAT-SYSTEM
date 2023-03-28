@@ -8,17 +8,11 @@
 
 int startClient(struct hostent* host)
 {
-    int sckt = 0;
+    // int sckt=0;
     int received_length = 0;
     size_t lineOverForty = 0;
-    int client_run = FALSE;
     struct sockaddr_in server_addr;
 
-    int chat_line = 0;
-    int shouldBlank = 0;
-
-
-    char buffer[BUFFER_SIZE] = { 0 };
     pthread_t outgoing;
     pthread_t incoming;
 
@@ -39,19 +33,19 @@ int startClient(struct hostent* host)
     server_addr.sin_port = htons(PORT);
 
     // get client socket
-    if ((sckt = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((theSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         // printf ("[CLIENT ERROR] Getting Client Socket\n");
         return 3;
     }
 
     // connect to server
-    if (connect(sckt, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+    if (connect(theSocket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
     {
         printf("[CLIENT ERROR] Connect to Server\n");
         perror("binding error");
         exit(EXIT_FAILURE);
-        close(sckt);
+        close(theSocket);
         // return 4;
     }
 
@@ -60,7 +54,7 @@ int startClient(struct hostent* host)
     cbreak();   // set the input mode for the terminal
     noecho();   // do not echo() while do getch
     refresh();  // copy the window to the physical terminal screen
-    msg_height = 13;
+    msg_height = 18;
     msg_width = 80;
     msg_starty = 0;
     msg_startx = 0;
@@ -74,78 +68,111 @@ int startClient(struct hostent* host)
     chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx, 'c');
     scrollok(chat_win, TRUE);
 
-
-    client_run = TRUE;
-    while (client_run == TRUE)
+    if (pthread_create(&outgoing, NULL, sendMessage, (void*)chat_win))
     {
-        // get user input by 80 chars,
-        memset(buffer, 0, BUFFER_SIZE - 1);
-        input_win(chat_win, buffer);
-        memcpy(client_message->chat, buffer, sizeof(buffer));
-        if (strcmp(buffer, ">>bye<<") == 0)
-        {
-            client_run = FALSE;
-        }
-        if (pthread_create(&outgoing, NULL, sendMessage, (void*)&sckt))
-        {
-            return -5;
-        }
-        // receive message
-        if (pthread_create(&incoming, NULL, receiveMessage, (void*)&sckt))
-        {
-            return -5;
-        }
-        time_t rawtime;
-        struct tm* timeinfo;
-        char timestamp[11] = { 0 };
-        time(&rawtime);
-        timeinfo = localtime(&rawtime);
-        sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-        // display message
-        display_win(msg_win, timestamp, chat_line, shouldBlank, client_message);
-        //display_win(msg_win, msg->chat, 0, shouldBlank);
-        chat_line++;
-        pthread_detach(outgoing);
-        pthread_detach(incoming);
+        return -5;
     }
+    // pthread_detach(outgoing);
+    if (pthread_create(&incoming, NULL, receiveMessage, (void*)msg_win))
+    {
+        return -5;
+    }
+    // pthread_detach(incoming);
+    pthread_join(outgoing, NULL);
+    pthread_join(incoming, NULL);
 
-
-
-    sleep(1);
+    sleep(2);
+    close(theSocket);
     destroy_win(chat_win);
     destroy_win(msg_win);
     endwin();
 
-    close(sckt);
     return 1;
 }
 
-void* sendMessage(void* sock)
+void* sendMessage(void* win)
 {
-    int clientSocket = *((int*)sock);
+    pthread_mutex_lock(&mtx_ncs);
+    int sock = theSocket;
+    char buffer[BUFFER_SIZE] = { 0 };
+    int run = TRUE;
+
+    while (run == TRUE)
+    {
+
+        memset(buffer, 0, BUFFER_SIZE - 1);
+
+        input_win(win, buffer);
+
+        memcpy(client_message->chat, buffer, sizeof(buffer));
+        if (strcmp(buffer, ">>bye<<") == 0)
+        {
+            run = FALSE;
+        }
+        send(sock, (void*)client_message, sizeof(MESSAGE), FLAG);
+
+    }
+
+    pthread_mutex_unlock(&mtx_ncs);
+    pthread_exit(NULL);
+}
+
+
+void* receiveMessage(void* win)
+{
     pthread_mutex_lock(&mtx);
-    send(clientSocket, (void*)client_message, sizeof(MESSAGE), FLAG);
+    int sock = theSocket;
+    int run = TRUE;
+    int ret = 1;
+    time_t rawtime;
+    struct tm* timeinfo;
+    char timestamp[11] = { 0 };
+    int chat_line = 0;
+    int shouldBlank = 0;
+    MESSAGE* receive_message = (MESSAGE*)malloc(sizeof(MESSAGE));
+
+    while (run == TRUE)
+    {
+        ret = recv(sock, (void*)receive_message, sizeof(MESSAGE), FLAG);
+
+        if (ret == 0)
+        {
+            run = FALSE;
+        }
+
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+        // display message
+        display_win(win, timestamp, chat_line, shouldBlank, receive_message);
+        pthread_mutex_unlock(&mtx);
+        chat_line++;
+    }
+
     pthread_mutex_unlock(&mtx);
     pthread_exit(NULL);
 }
 
-void* receiveMessage(void* sock)
-{
-    int clientSocket = *((int*)sock);
-    pthread_mutex_lock(&mtx);
-    recv(clientSocket, (void*)client_message, sizeof(MESSAGE), FLAG);
-    pthread_mutex_unlock(&mtx);
-    pthread_exit(NULL);
-}
+
 
 WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
 {
     WINDOW* local_win;
+    char* chat_title = "Outgoing Message";
+    char* msg_title = "CanWeTalk Incoming Message";
+    int mlength = strlen(msg_title);
+    int ctitle = (getmaxx(local_win) - strlen(chat_title)) / 2;
+    int mtitle = (getmaxx(local_win) - mlength) / 2;
 
     if (type == 'c')
     {
         local_win = newwin(height, width, starty, startx);
-        box(local_win, 0, 0);     // draw box
+        //box(local_win, 0, 0);     // draw box
+        wmove(local_win, 0, 0);
+        whline(local_win, ACS_HLINE, getmaxx(local_win));
+        attron(A_REVERSE);
+        mvwprintw(local_win, 0, ctitle, chat_title);
+        attroff(A_REVERSE);
         mvwprintw(local_win, 1, 3, "> ");
         //wmove(local_win, 1, 1);   // position cursor at top
         wrefresh(local_win);
@@ -154,11 +181,16 @@ WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
     {
         local_win = newwin(height, width, starty, startx);
         box(local_win, 0, 0);     // draw box
-        wmove(local_win, 1, 1);   // position cursor at top
+        mvwprintw(local_win, 1, mtitle, msg_title);
         wrefresh(local_win);
+        wmove(local_win, 1, 0);   // position cursor at top
     }
     return local_win;
 }
+
+
+
+
 
 /* This function is for taking input chars from the user */
 void input_win(WINDOW* win, char* word)
@@ -204,12 +236,12 @@ void input_win(WINDOW* win, char* word)
 
 void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAGE* msg)
 {
-    if (shouldBlank == 1) blankWin(win); // make it a clean window
+    //if(shouldBlank == 1) blankWin(win); // make it a clean window
     wmove(win, (whichRow + 1), 1);      // position cusor at approp row
 
     if (strcmp(msg->id, user) == 0)
     {
-        wprintw(win, "%-16s[%-5s] >> %-40s %10s", msg->ipAddress, msg->id, msg->chat, tstmp);
+        wprintw(win, "%-15s [%-5s] >> %-40s %10s", msg->ipAddress, msg->id, msg->chat, tstmp);
     }
     else
     {

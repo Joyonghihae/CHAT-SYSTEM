@@ -18,8 +18,11 @@
 char user[ID_SIZE + 1];           // user
 MESSAGE* client_message;          // accessed by thread
 pthread_mutex_t mtx;
+pthread_mutex_t mtx_ncs;
 
-void* receiveMessage(void* sock);
+static int theSocket;
+
+void* receiveMessage(void* win);
 void* sendMessage(void* sock);
 
 

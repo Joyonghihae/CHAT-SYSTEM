@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
     // MESSAGE client_message = { 0 };
     client_message = (MESSAGE*)malloc(sizeof(MESSAGE));
     pthread_mutex_init(&mtx, NULL);
-
+    pthread_mutex_init(&mtx_ncs, NULL);
     // cmd args sanity check
     if (argc != 3)
     {
@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
     // get hostent structure with the hostname
     if ((host = gethostbyname(ipAdd)) == NULL)
     {
-        // convert IPaddress to the hostname
+        // convert server IPaddress to the hostname
         inet_aton(ipAdd, &ip_address);
         if ((host = gethostbyaddr(&ip_address, sizeof(ip_address), AF_INET)) == NULL)
         {
@@ -85,8 +85,6 @@ int main(int argc, char* argv[])
     {
         pthread_mutex_lock(&mtx);
         strcpy(client_message->id, user);
-        strcpy(client_message->ipAddress, inet_ntoa(ip_address));
-        printf("start server user: %s, ipAdd %s\n", client_message->id, client_message->ipAddress);
         pthread_mutex_unlock(&mtx);
 
         ret_val = startClient(host);
@@ -95,6 +93,7 @@ int main(int argc, char* argv[])
 
     // Destroy mutex
     pthread_mutex_destroy(&mtx);
+    pthread_mutex_destroy(&mtx_ncs);
 
     return 0;
 }
