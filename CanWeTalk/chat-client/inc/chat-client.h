@@ -15,7 +15,12 @@
 #include <ncurses.h>
 
 
-char user[ID_SIZE + 1];
+char user[ID_SIZE + 1];           // user
+MESSAGE* client_message;          // accessed by thread
+pthread_mutex_t mtx;
+
+void* receiveMessage(void* sock);
+void* sendMessage(void* sock);
 
 
 WINDOW* create_newwin(int, int, int, int, char);
@@ -25,6 +30,6 @@ void display_win(WINDOW*, char*, int, int, MESSAGE*);
 void destroy_win(WINDOW* win);
 void blankWin(WINDOW* win);
 
-int startClient(struct hostent* host, MESSAGE* msg);
+int startClient(struct hostent* host);
 
 #endif

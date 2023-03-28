@@ -6,27 +6,21 @@
 
 #include "../inc/chat-client.h"
 
-int startClient(struct hostent* host, MESSAGE* msg)
+int startClient(struct hostent* host)
 {
     int sckt = 0;
     int received_length = 0;
-    size_t input_length = 0;
+    size_t lineOverForty = 0;
     int client_run = FALSE;
     struct sockaddr_in server_addr;
-    // time stamps
-    time_t rawtime;
-    struct tm* timeinfo;
-
-
-    char timestamp[11] = { 0 };
 
     int chat_line = 0;
     int shouldBlank = 0;
-    char buf[BUFSIZ];
 
-    char buffer[BUFFER_SIZE];
-    pthread_t outgoing_window;
-    pthread_t incoming_window;
+
+    char buffer[BUFFER_SIZE] = { 0 };
+    pthread_t outgoing;
+    pthread_t incoming;
 
     // ncurses
     WINDOW* chat_title_win;
@@ -66,18 +60,15 @@ int startClient(struct hostent* host, MESSAGE* msg)
     cbreak();   // set the input mode for the terminal
     noecho();   // do not echo() while do getch
     refresh();  // copy the window to the physical terminal screen
-
     msg_height = 13;
     msg_width = 80;
-    msg_startx = 0;
     msg_starty = 0;
-
+    msg_startx = 0;
     chat_height = 5;
     chat_width = COLS - 2;
     chat_starty = LINES - chat_height;
     chat_startx = 1;
-
-    // create ncurses windows
+    // create ncurses windows after server connection
     msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx, 'm');
     scrollok(msg_win, TRUE); // enable scrollig
     chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx, 'c');
@@ -87,44 +78,40 @@ int startClient(struct hostent* host, MESSAGE* msg)
     client_run = TRUE;
     while (client_run == TRUE)
     {
-
-        memset(buffer, 0, BUFFER_SIZE);
-        // 10 messages before scroll
+        // get user input by 80 chars,
+        memset(buffer, 0, BUFFER_SIZE - 1);
         input_win(chat_win, buffer);
-        input_length = strlen(buffer);
-        if (buffer[strlen(buffer) - 1] == '\n')
-        {
-            buffer[strlen(buffer) - 1] = '\0';
-            memcpy(msg->chat, buffer, sizeof(buffer));
-        }
-        else
-        {
-            memcpy(msg->chat, buffer, sizeof(buffer));
-        }
-
-        //THREAD TO HANDLE OUTGOIN AND THREAD TO HANDLE THE INCOMMING
+        memcpy(client_message->chat, buffer, sizeof(buffer));
         if (strcmp(buffer, ">>bye<<") == 0)
         {
-            send(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
-            client_run = 0;
+            client_run = FALSE;
         }
-        else
+        if (pthread_create(&outgoing, NULL, sendMessage, (void*)&sckt))
         {
-            send(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
-            received_length = recv(sckt, (void*)msg, sizeof(MESSAGE), FLAG);
-            //display_win(msg_win, msg->chat, 0, shouldBlank);
+            return -5;
         }
-
+        // receive message
+        if (pthread_create(&incoming, NULL, receiveMessage, (void*)&sckt))
+        {
+            return -5;
+        }
+        time_t rawtime;
+        struct tm* timeinfo;
+        char timestamp[11] = { 0 };
         time(&rawtime);
         timeinfo = localtime(&rawtime);
         sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-        // if user is same with id
-        display_win(msg_win, timestamp, chat_line, shouldBlank, msg);
+        // display message
+        display_win(msg_win, timestamp, chat_line, shouldBlank, client_message);
+        //display_win(msg_win, msg->chat, 0, shouldBlank);
         chat_line++;
-
+        pthread_detach(outgoing);
+        pthread_detach(incoming);
     }
 
-    sleep(2);                   /* to get a delay */
+
+
+    sleep(1);
     destroy_win(chat_win);
     destroy_win(msg_win);
     endwin();
@@ -133,7 +120,23 @@ int startClient(struct hostent* host, MESSAGE* msg)
     return 1;
 }
 
+void* sendMessage(void* sock)
+{
+    int clientSocket = *((int*)sock);
+    pthread_mutex_lock(&mtx);
+    send(clientSocket, (void*)client_message, sizeof(MESSAGE), FLAG);
+    pthread_mutex_unlock(&mtx);
+    pthread_exit(NULL);
+}
 
+void* receiveMessage(void* sock)
+{
+    int clientSocket = *((int*)sock);
+    pthread_mutex_lock(&mtx);
+    recv(clientSocket, (void*)client_message, sizeof(MESSAGE), FLAG);
+    pthread_mutex_unlock(&mtx);
+    pthread_exit(NULL);
+}
 
 WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
 {
@@ -165,7 +168,7 @@ void input_win(WINDOW* win, char* word)
 
     blankWin(win);                  // make it a clean window
     getmaxyx(win, maxrow, maxcol);  // get window size
-    bzero(word, BUFSIZ);
+    bzero(word, BUFFER_SIZE);
     wmove(win, 1, 1);
     wprintw(win, "> ");
 
@@ -199,18 +202,18 @@ void input_win(WINDOW* win, char* word)
 }  /* input_win */
 
 
-void display_win(WINDOW* win, char* word, int whichRow, int shouldBlank, MESSAGE* msg)
+void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAGE* msg)
 {
     if (shouldBlank == 1) blankWin(win); // make it a clean window
     wmove(win, (whichRow + 1), 1);      // position cusor at approp row
 
     if (strcmp(msg->id, user) == 0)
     {
-        wprintw(win, "%-16s[%-5s] >> %-40s %10s", msg->ipAddress, msg->id, msg->chat, word);
+        wprintw(win, "%-16s[%-5s] >> %-40s %10s", msg->ipAddress, msg->id, msg->chat, tstmp);
     }
     else
     {
-        wprintw(win, "%-16s[%-5s] << %-40s %10s", msg->ipAddress, msg->id, msg->chat, word);
+        wprintw(win, "%-16s[%-5s] << %-40s %10s", msg->ipAddress, msg->id, msg->chat, tstmp);
     }
 
     wrefresh(win);

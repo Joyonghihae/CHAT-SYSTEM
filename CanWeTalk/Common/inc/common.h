@@ -17,16 +17,19 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pthread.h>
 
 
 #define PORT 1024
-#define BUFFER_SIZE 80
+#define BUFFER_SIZE 81
+#define MAX_CHAR 41
 #define LOG_BUFFER_SIZE 256
 #define ID_SIZE 5
 #define IP_SIZE 16
 #define TRUE 1
 #define FALSE 0
 #define FLAG 0
+#define RET_ERROR -1
 #define SERVER 's'
 
 //

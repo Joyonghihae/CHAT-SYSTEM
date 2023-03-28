@@ -8,7 +8,7 @@
 
 
 #include "../inc/chat-server.h"
-#include <pthread.h>
+
 
 
 // FUNCTION   : startServer()
@@ -100,6 +100,8 @@ int startServer()
         clientsMasterList->client_connections++;
         pthread_mutex_unlock(&mtx);
 
+
+
         // create thread to be responsible for incoming  message the user and broadcasting to all users
         if (pthread_create(&(tid[thread_index]), NULL, clientThread, (void*)&client_socket))
         {
@@ -138,7 +140,7 @@ void* clientThread(void* socket)
     while (1)
     {
         // receive message from client and broadcast the message to clients
-        numBytesRead = recv(clientSocket, &message_received, sizeof(message_received), FLAG);
+        numBytesRead = recv(clientSocket, &message_received, sizeof(MESSAGE), FLAG);
         if (numBytesRead == 0 || strcmp(message_received.chat, quit) == 0)
         {
             // collapse MasterList, remove the client

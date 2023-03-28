@@ -20,8 +20,9 @@ int main(int argc, char* argv[])
     int argv_length = 0;
     int ret_val = 0;
 
-    MESSAGE client_message = { 0 };
-
+    // MESSAGE client_message = { 0 };
+    client_message = (MESSAGE*)malloc(sizeof(MESSAGE));
+    pthread_mutex_init(&mtx, NULL);
 
     // cmd args sanity check
     if (argc != 3)
@@ -76,20 +77,24 @@ int main(int argc, char* argv[])
         inet_aton(ipAdd, &ip_address);
         if ((host = gethostbyaddr(&ip_address, sizeof(ip_address), AF_INET)) == NULL)
         {
-            printf("[CLIENT ERROR] : Host/IP Address information\n");
+            printf("5 %s\n", usage);
             return 2;
         }
     }
     else
     {
-        strcpy(client_message.id, user);
+        pthread_mutex_lock(&mtx);
+        strcpy(client_message->id, user);
+        strcpy(client_message->ipAddress, inet_ntoa(ip_address));
+        printf("start server user: %s, ipAdd %s\n", client_message->id, client_message->ipAddress);
+        pthread_mutex_unlock(&mtx);
 
-        strcpy(client_message.ipAddress, inet_ntoa(ip_address));
-        printf("start server user: %s, ipAdd %s\n", client_message.id, client_message.ipAddress);
-
-        ret_val = startClient(host, &client_message);
+        ret_val = startClient(host);
         printf("startclient return: %d\n", ret_val);
     }
+
+    // Destroy mutex
+    pthread_mutex_destroy(&mtx);
 
     return 0;
 }
