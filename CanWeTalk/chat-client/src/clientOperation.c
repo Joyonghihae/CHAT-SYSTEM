@@ -1,0 +1,298 @@
+// FILE          : clientOperation.c
+// PROJECT       : CanWeTalk
+// programmer    : Euyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
+// FIRST VERSION : 2023-03-18
+// DESCRIPTION   : This clientOperation.c file is to
+
+#include "../inc/chat-client.h"
+
+int startClient(struct hostent* host)
+{
+    // int sckt=0;
+    int received_length = 0;
+    size_t lineOverForty = 0;
+    struct sockaddr_in server_addr;
+
+    pthread_t outgoing;
+    pthread_t incoming;
+
+    // ncurses
+    WINDOW* chat_title_win;
+    WINDOW* chat_win;
+    WINDOW* msg_title_win;
+    WINDOW* msg_win;
+
+    //LINES, COLS deindesd in <ncurses.h>, filled in by initscr with the size of the screen
+    int chat_startx, chat_starty, chat_width, chat_height;
+    int msg_startx, msg_starty, msg_width, msg_height;
+    int msg_title_height, msg_title_width, msg_title_startx, msg_title_starty;
+    int chat_title_height, chat_title_width, chat_title_startx, chat_title_starty;
+
+    // initialize server address
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    memcpy(&server_addr.sin_addr, host->h_addr, host->h_length);
+    server_addr.sin_port = htons(PORT);
+
+    // get client socket
+    if ((theSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        // printf ("[CLIENT ERROR] Getting Client Socket\n");
+        return 3;
+    }
+
+    // connect to server
+    if (connect(theSocket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+    {
+        printf("[CLIENT ERROR] Connect to Server\n");
+        perror("binding error");
+        exit(EXIT_FAILURE);
+        close(theSocket);
+        // return 4;
+    }
+
+    // if connected to server, then ncurses start
+    initscr();  // initialize the ncurses data structure
+    cbreak();   // set the input mode for the terminal
+    noecho();   // do not echo() while do getch
+    refresh();  // copy the window to the physical terminal screen
+
+
+    msg_height = 12;
+    msg_width = 80;
+    msg_starty = 4;
+    msg_startx = 1;
+
+    msg_title_height = 3;
+    msg_title_width = COLS - 2;
+    msg_title_startx = 1;
+    msg_title_starty = 1;
+
+    chat_title_height = 3;
+    chat_title_width = COLS - 2;
+    chat_title_startx = 1;
+    chat_title_starty = 17;
+
+    
+    chat_height = 4;
+    chat_width = COLS - 2;
+    chat_starty = 20;
+    chat_startx = 1;
+
+    // create ncurses windows after server connection
+    msg_title_win = create_newwin(msg_title_height, msg_title_width, msg_title_starty, msg_title_startx, 's');
+    scrollok(msg_title_win, TRUE); 
+    msg_win = create_newwin(msg_height, msg_width, msg_starty, msg_startx, 'm');
+    scrollok(msg_win, TRUE); // enable scrollig
+
+
+    chat_title_win = create_newwin(chat_title_height, chat_title_width, chat_title_starty, chat_title_startx, 'h');
+    scrollok(chat_title_win, TRUE); 
+    chat_win = create_newwin(chat_height, chat_width, chat_starty, chat_startx, 'c');
+    scrollok(chat_win, TRUE);
+
+    if (pthread_create(&outgoing, NULL, sendMessage, (void*)chat_win))
+    {
+        return -5;
+    }
+    // pthread_detach(outgoing);
+    if (pthread_create(&incoming, NULL, receiveMessage, (void*)msg_win))
+    {
+        return -5;
+    }
+    // pthread_detach(incoming);
+    pthread_join(outgoing, NULL);
+    pthread_join(incoming, NULL);
+
+    sleep(2);
+    close(theSocket);
+    destroy_win(chat_win);
+    destroy_win(msg_win);
+    endwin();
+
+    return 1;
+}
+
+void* sendMessage(void* win)
+{
+    pthread_mutex_lock(&mtx_ncs);
+    int sock = theSocket;
+    char buffer[BUFFER_SIZE] = { 0 };
+    int run = TRUE;
+
+    while (run == TRUE)
+    {
+
+        memset(buffer, 0, BUFFER_SIZE - 1);
+
+        input_win(win, buffer);
+
+        memcpy(client_message->chat, buffer, sizeof(buffer));
+        if (strcmp(buffer, ">>bye<<") == 0)
+        {
+            run = FALSE;
+        }
+        send(sock, (void*)client_message, sizeof(MESSAGE), FLAG);
+
+    }
+
+    pthread_mutex_unlock(&mtx_ncs);
+    pthread_exit(NULL);
+}
+
+
+void* receiveMessage(void* win)
+{
+    pthread_mutex_lock(&mtx);
+    int sock = theSocket;
+    int run = TRUE;
+    int ret = 1;
+    time_t rawtime;
+    struct tm* timeinfo;
+    char timestamp[11] = { 0 };
+    int chat_line = 0;
+    int shouldBlank = 0;
+    MESSAGE* receive_message = (MESSAGE*)malloc(sizeof(MESSAGE));
+
+    while (run == TRUE)
+    {
+        ret = recv(sock, (void*)receive_message, sizeof(MESSAGE), FLAG);
+
+        if (ret == 0)
+        {
+            run = FALSE;
+        }
+
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        sprintf(timestamp, "(%02d:%02d:%02d)", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+        // display message
+        display_win(win, timestamp, chat_line, shouldBlank, receive_message);
+        pthread_mutex_unlock(&mtx);
+        chat_line++;
+    }
+
+    pthread_mutex_unlock(&mtx);
+    pthread_exit(NULL);
+}
+
+
+
+WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
+{
+    WINDOW* local_win;
+
+    if (type == 's')
+    {
+        local_win = newwin(height, width, starty, startx);
+        box(local_win, '|', '*');
+        mvwprintw(local_win, height / 2, (width - 8) / 2, "Messages");
+        //wmove(local_win, 1, 1); 
+        wrefresh(local_win);
+        
+    }else if(type == 'c'){
+        local_win = newwin(height, width, starty, startx);
+         box(local_win, 0, 0);     // draw box
+        mvwprintw(local_win, 1, 3, "> ");
+        //wmove(local_win, 1, 1);   // position cursor at top
+        wrefresh(local_win);
+    }else if(type == 'h'){
+        local_win = newwin(height, width, starty, startx);
+         box(local_win,'|', '*');
+        mvwprintw(local_win, height / 2, (width - 4) / 2, "Chat");
+        wrefresh(local_win);
+
+    }else
+    {
+        local_win = newwin(height, width, starty, startx);
+        box(local_win, 0, 0);     // draw box
+        //wmove(local_win, 1, 1);   // position cursor at top
+        wrefresh(local_win);
+    }
+    return local_win;
+}
+
+
+
+
+
+/* This function is for taking input chars from the user */
+void input_win(WINDOW* win, char* word)
+{
+    int i, ch;
+    int maxrow, maxcol, row = 1, col = 0;
+
+    blankWin(win);                  // make it a clean window
+    getmaxyx(win, maxrow, maxcol);  // get window size
+    bzero(word, BUFFER_SIZE);
+    wmove(win, 1, 1);
+    wprintw(win, "> ");
+
+    for (i = 0; (ch = wgetch(win)) != '\n'; i++)
+    {
+        word[i] = ch;                       /* '\n' not copied */
+        if (col++ < maxcol - 2)               /* if within window */
+        {
+            wprintw(win, "%c", word[i]);      /* display the char recv'd */
+        }
+        else                                /* last char pos reached */
+        {
+            col = 1;
+            if (row == maxrow - 2)              /* last line in the window */
+            {
+                scroll(win);                    /* go up one line */
+                row = maxrow - 2;                 /* stay at the last line */
+                wmove(win, row, col);           /* move cursor to the beginning */
+                wclrtoeol(win);                 /* clear from cursor to eol */
+                box(win, 0, 0);                 /* draw the box again */
+            }
+            else
+            {
+                row++;
+                wmove(win, row, col);           /* move cursor to the beginning */
+                wrefresh(win);
+                wprintw(win, "%c", word[i]);    /* display the char recv'd */
+            }
+        }
+    }
+}  /* input_win */
+
+
+void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAGE* msg)
+{
+    //if(shouldBlank == 1) blankWin(win); // make it a clean window
+    wmove(win, (whichRow + 1), 1);      // position cusor at approp row
+
+    if (strcmp(msg->id, user) == 0)
+    {
+        wprintw(win, "%-15s [%-5s] >> %-40s %10s", msg->ipAddress, msg->id, msg->chat, tstmp);
+    }
+    else
+    {
+        wprintw(win, "%-16s[%-5s] << %-40s %10s", msg->ipAddress, msg->id, msg->chat, tstmp);
+    }
+
+    wrefresh(win);
+} /* display_win */
+
+void destroy_win(WINDOW* win)
+{
+    delwin(win);
+}  /* destory_win */
+
+void blankWin(WINDOW* win)
+{
+    int i;
+    int maxrow, maxcol;
+
+    getmaxyx(win, maxrow, maxcol);
+    for (i = 1; i < maxcol - 2; i++)
+    {
+        wmove(win, i, 1);
+        refresh();
+        wclrtoeol(win);
+        wrefresh(win);
+    }
+    box(win, 0, 0);             /* draw the box again */
+    wrefresh(win);
+}  /* blankWin */
