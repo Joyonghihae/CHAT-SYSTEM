@@ -1,10 +1,12 @@
-// FILE          : chat-client.c
+// FILE          : serverOperation.c
 // PROJECT       : CanWeTalk
-// programmer    : Eunyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
+// programmer    : Euyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
 // FIRST VERSION : 2023-03-18
-// DESCRIPTION   : This is an internet server application that will respond
-// to requests on port 5000
-// REFERENCE     : ncurses - splitWin.c is a simple example to show how to deal with split screens. Sam Hsu (11/17/10)
+// DESCRIPTION   : This serverOperation.c file has the following functions for chat-server operation.
+// - startServer
+// - clientThread
+// - collapseMasterList
+// - broadcast
 
 
 #include "../inc/chat-server.h"
@@ -91,11 +93,12 @@ int startServer()
         clientsMasterList->clients[clientsMasterList->client_connections].port = ntohs(client_addr.sin_port);
         thread_index = clientsMasterList->client_connections;
 
-        printf("client_connections: %d, socket: %d, port: %d, ipAddress: %s\n",
+        printf("client_connections: %d, socket: %d, port: %d, Client ipAddress: %s host ip: %s\n",
             clientsMasterList->client_connections,
             clientsMasterList->clients[clientsMasterList->client_connections].socket,
             clientsMasterList->clients[clientsMasterList->client_connections].port,
-            clientsMasterList->clients[clientsMasterList->client_connections].ipAddress);
+            clientsMasterList->clients[clientsMasterList->client_connections].ipAddress,
+            inet_ntoa(server_addr.sin_addr));
 
         clientsMasterList->client_connections++;
         pthread_mutex_unlock(&mtx);
@@ -121,10 +124,10 @@ int startServer()
 
 
 // FUNCTION   : clientThread()
-// DESCRIPTION: This function
-//
+// DESCRIPTION: This function receives client message and call broadcast function
+// and maintains MasterList if client is disconnected
 // PARAMETERS : void *socket
-// RETURN     : NULL
+// RETURN     : nothing
 void* clientThread(void* socket)
 {
     int clientSocket = *((int*)socket);
@@ -141,10 +144,8 @@ void* clientThread(void* socket)
     {
         // receive message from client and broadcast the message to clients
         numBytesRead = recv(clientSocket, &message_received, sizeof(MESSAGE), FLAG);
-        // find the ip address for the socket and update message struct. IP add
-
-
-        if (numBytesRead == 0 || strcmp(message_received.chat, quit) == 0)
+        if (numBytesRead == RET_ERROR ||
+            strcmp(message_received.chat, quit) == 0)
         {
             // collapse MasterList, remove the client
             pthread_mutex_lock(&mtx);
@@ -158,25 +159,24 @@ void* clientThread(void* socket)
             }
             printf("%d socket is closed and after collapse client no is %d\n", clientSocket, clientsMasterList->client_connections);
             pthread_mutex_unlock(&mtx);
+
+            printf("thread exit\n");
+            pthread_exit(NULL);
+            pthread_exit(NULL);
             break;
         }
-        else {
+        else
+        {
             // printf("byteread: %d\t %s\n", numBytesRead, message_received.chat);
             broadcast(&message_received);
         }
-
     }
-    printf("thread exit\n");
-    pthread_exit(NULL);
 }
 
 
 // FUNCTION   : collapseMasterList()
-// DESCRIPTION: This function updates struct mlist of struct MasterList
-// with received message queue information
-// PARAMETERS : msgDC* msg
-//              MasterLIst* mlist
-//              int index
+// DESCRIPTION: This function updates MasterList if client is disconnected
+// PARAMETERS : int clientSocket
 // RETURN     : Nothing
 void collapseMasterList(int clientSocket)
 {
@@ -208,8 +208,7 @@ void collapseMasterList(int clientSocket)
 
 
 // FUNCTION   : broadcast()
-// DESCRIPTION: This function updates struct mlist of struct MasterList
-// with received message queue information
+// DESCRIPTION: This function sends incoming message to all clients
 // PARAMETERS : msgDC* msg
 //              MasterLIst* mlist
 //              int index

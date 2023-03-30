@@ -1,9 +1,8 @@
-// FILE          : chat-client.c
+// FILE          : chat-server.c
 // PROJECT       : CanWeTalk
 // programmer    : Euyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
 // FIRST VERSION : 2023-03-18
-// DESCRIPTION   : This is an internet server application that will respond
-// to requests on port 5000
+// DESCRIPTION   : This is chat-server.c file for chat-server application
 
 #include "../inc/chat-server.h"
 
@@ -11,12 +10,11 @@
 int main(void)
 {
 	int retValue = 0;
-
 	// initiate mutex
 	pthread_mutex_init(&mtx, NULL);
 	// start server
 	retValue = startServer();
-	printf("startserver: %d\n", retValue);
+
 	// Destroy mutex
 	pthread_mutex_destroy(&mtx);
 
