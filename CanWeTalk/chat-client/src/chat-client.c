@@ -20,10 +20,9 @@ int main(int argc, char* argv[])
     int argv_length = 0;
     int ret_val = 0;
 
-    // MESSAGE client_message = { 0 };
     client_message = (MESSAGE*)malloc(sizeof(MESSAGE));
     pthread_mutex_init(&mtx, NULL);
-    pthread_mutex_init(&mtx_ncs, NULL);
+
     // cmd args sanity check
     if (argc != 3)
     {
@@ -53,7 +52,6 @@ int main(int argc, char* argv[])
     {
         strcpy(sanityBuffer, argv[1]);
         strncpy(user, sanityBuffer + ID_SIZE, strlen(sanityBuffer) - ID_SIZE + 1);
-        printf("user: %s\n", user);
     }
     // check argv[2]
     strncpy(sanityBuffer, argv[2], argv_server_length);
@@ -67,7 +65,6 @@ int main(int argc, char* argv[])
     {
         strcpy(sanityBuffer, argv[2]);
         strncpy(ipAdd, sanityBuffer + argv_server_length, strlen(sanityBuffer) - argv_server_length + 1);
-        printf("ipAdd: %s\n", ipAdd);
     }
 
     // get hostent structure with the hostname
@@ -78,7 +75,7 @@ int main(int argc, char* argv[])
         if ((host = gethostbyaddr(&ip_address, sizeof(ip_address), AF_INET)) == NULL)
         {
             printf("5 %s\n", usage);
-            return 2;
+            return -2;
         }
     }
     else
@@ -86,14 +83,13 @@ int main(int argc, char* argv[])
         pthread_mutex_lock(&mtx);
         strcpy(client_message->id, user);
         pthread_mutex_unlock(&mtx);
-
-        ret_val = startClient(host);
-        printf("startclient return: %d\n", ret_val);
+        // start client
+        startClient(host);
     }
 
-    // Destroy mutex
+    printf("bye\n");
+    free(client_message);
     pthread_mutex_destroy(&mtx);
-    pthread_mutex_destroy(&mtx_ncs);
 
     return 0;
 }

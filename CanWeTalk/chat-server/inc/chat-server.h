@@ -2,7 +2,7 @@
 // PROJECT       : CanWeTalk
 // programmer    : Euyoung Kim, Raj Dudhat, Yujin Jeong, Yujung Park
 // FIRST VERSION : 2023-03-18
-// DESCRIPTION   :
+// DESCRIPTION   : This is a header file for chat-server
 
 #ifndef __chat_server_h__
 #define __chat_server_h__

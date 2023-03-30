@@ -14,9 +14,11 @@
 #include <stdarg.h>
 #include <ncurses.h>
 
+#define TIMESTAMP_SIZE 11
+#define MAX_CHAR 40
 
-char user[ID_SIZE + 1];           // user
-MESSAGE* client_message;          // accessed by thread
+char user[ID_SIZE + 1];
+MESSAGE* client_message;
 pthread_mutex_t mtx;
 pthread_mutex_t mtx_ncs;
 
@@ -25,11 +27,10 @@ static int theSocket;
 void* receiveMessage(void* win);
 void* sendMessage(void* sock);
 
-
 WINDOW* create_newwin(int, int, int, int, char);
 void destroy_win(WINDOW*);
 void input_win(WINDOW*, char*);
-void display_win(WINDOW*, char*, int, int, MESSAGE*);
+void display_win(WINDOW*, char*, int, int, MESSAGE*, char*);
 void destroy_win(WINDOW* win);
 void blankWin(WINDOW* win);
 
