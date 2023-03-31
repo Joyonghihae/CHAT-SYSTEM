@@ -78,6 +78,7 @@ int startClient(struct hostent* host)
     clear();
     refresh();    // copy the window to the physical terminal screen
     start_color();
+    use_default_colors();
     init_pair(1, COLOR_BLACK, COLOR_WHITE);
 
     msg_title_height = 3;
@@ -377,8 +378,7 @@ void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAG
         wprintw(win, "%-15s [%-5s] << %-40s %10s", msg->ipAddress, msg->id, buf, tstmp);
     }
     wrefresh(win); // update screen and clean the buffer
-    //refresh(win);
-
+    // refresh();
 } /* display_win */
 
 void destroy_win(WINDOW* win)
