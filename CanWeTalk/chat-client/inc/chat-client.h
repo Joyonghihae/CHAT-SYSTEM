@@ -16,6 +16,7 @@
 
 #define TIMESTAMP_SIZE 11
 #define MAX_CHAR 40
+#define MAX_DISPLAY_LINE 10
 
 char user[ID_SIZE + 1];
 MESSAGE* client_message;

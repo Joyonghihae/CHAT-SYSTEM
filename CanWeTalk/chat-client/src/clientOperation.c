@@ -75,6 +75,7 @@ int startClient(struct hostent* host)
     initscr();    // initialize the ncurses data structure
     cbreak();     // set the input mode for the terminal
     noecho();     // do not echo() while do getch
+    clear();
     refresh();    // copy the window to the physical terminal screen
     start_color();
     init_pair(1, COLOR_BLACK, COLOR_WHITE);
@@ -84,19 +85,19 @@ int startClient(struct hostent* host)
     msg_title_starty = 0;
     msg_title_startx = 0;
 
-    msg_height = 18;
+    msg_height = 10;
     msg_width = COLS;
     msg_starty = 3;
     msg_startx = 0;
 
     chat_title_height = 3;
     chat_title_width = COLS;
-    chat_title_starty = 21;
+    chat_title_starty = 16;
     chat_title_startx = 0;
 
-    chat_height = 3;
+    chat_height = 2;
     chat_width = COLS;
-    chat_starty = 24;
+    chat_starty = 19;
     chat_startx = 0;
 
     // create ncurses windows after server connection
@@ -135,8 +136,8 @@ int startClient(struct hostent* host)
     // pthread_detach(incoming);
     pthread_join(outgoing, NULL);
     pthread_join(incoming, NULL);
+    sleep(1);
 
-    sleep(2);
     close(theSocket);
     destroy_win(chat_win);
     destroy_win(msg_win);
@@ -273,15 +274,14 @@ WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
     char* outgoing_title = "Outgoing Message";
     char* msg_title = "CanWeTalk Message";
 
-
     if (type == 's')
     {
         local_win = newwin(height, width, starty, startx);
-        curs_set(FALSE);
         wbkgd(local_win, COLOR_PAIR(1));
         wrefresh(local_win);
         mvwprintw(local_win, height / 2, (width - strlen(msg_title)) / 2, msg_title);
         wrefresh(local_win);
+        curs_set(FALSE);
     } //msg title
     else if (type == 'c')
     {
@@ -293,17 +293,18 @@ WINDOW* create_newwin(int height, int width, int starty, int startx, char type)
     else if (type == 'h')
     {
         local_win = newwin(height, width, starty, startx);
-        curs_set(FALSE);
         wbkgd(local_win, COLOR_PAIR(1));
         wrefresh(local_win);
         mvwprintw(local_win, height / 2, (width - strlen(outgoing_title)) / 2, outgoing_title);
         wrefresh(local_win);
+        curs_set(FALSE);
+        //leaveok(local_win, true);
     } // input title
     else
     {
         local_win = newwin(height, width, starty, startx);
-        scrollok(local_win, TRUE);
-        idlok(local_win, TRUE);
+        scrollok(local_win, TRUE);   // use scroll
+        idlok(local_win, TRUE);      // enable insert, delete ok for scroll
         //wrefresh(local_win);
         //wmove(local_win, 1, 0);   // position cursor at top
     }
@@ -327,6 +328,7 @@ void input_win(WINDOW* win, char* word)
     bzero(word, BUFFER_SIZE);
     wmove(win, 1, 1);                 // move the cursor
     wprintw(win, "> ");               // print in the window
+    wrefresh(win);                    // update screen and clean the buffer
 
     for (i = 0; (ch = wgetch(win)) != '\n'; i++)
     {
@@ -351,10 +353,21 @@ void input_win(WINDOW* win, char* word)
 // RETURN     : nothing
 void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAGE* msg, char* buf)
 {
-    // a maximum of 10 lines of output are present in the message window before being scrolled
-    // if(shouldBlank == 1) blankWin(win); // make it a clean window
-    wmove(win, (whichRow + 1), 1);      // position cusor at approp row
+    if (whichRow >= MAX_DISPLAY_LINE)
+    {
+        wscrl(win, 1);      // scroll up one line
+        wrefresh(win);      // update window and clean buffer
+        wmove(win, (MAX_DISPLAY_LINE - 1), 0);   // move cursor to the beginning of line 10 (10-1)
+        wclrtoeol(win);     // clean the line 10
+        wrefresh(win);      // update window and clean buffer
+        wmove(win, (MAX_DISPLAY_LINE - 1), 1);  // move cursor to the beginning of the line for wprintw later
+    }
+    else
+    {
+        wmove(win, whichRow, 1);
+    }
     wrefresh(win);
+
     if (strcmp(msg->id, user) == 0)
     {
         wprintw(win, "%-15s [%-5s] >> %-40s %10s", msg->ipAddress, msg->id, buf, tstmp);
@@ -363,8 +376,9 @@ void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAG
     {
         wprintw(win, "%-15s [%-5s] << %-40s %10s", msg->ipAddress, msg->id, buf, tstmp);
     }
+    wrefresh(win); // update screen and clean the buffer
+    //refresh(win);
 
-    wrefresh(win);
 } /* display_win */
 
 void destroy_win(WINDOW* win)

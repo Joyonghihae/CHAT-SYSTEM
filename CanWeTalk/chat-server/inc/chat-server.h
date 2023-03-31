@@ -34,8 +34,11 @@ typedef struct master_list
 MasterList* clientsMasterList;
 pthread_mutex_t mtx;
 static int server_run = TRUE;
+static int server_socket = 0;
 
 // function prototype
+void serverSignalHandler(int signal_number);
+void serverAlarmHandler(int signal_number);
 int startServer();
 void* clientThread(void* socket);
 void collapseMasterList(int clientSocket);

@@ -87,7 +87,6 @@ int main(int argc, char* argv[])
         startClient(host);
     }
 
-    printf("bye\n");
     free(client_message);
     pthread_mutex_destroy(&mtx);
 

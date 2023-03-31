@@ -34,7 +34,7 @@
 #define SERVER 's'
 #define CLIENT 'c'
 
-//
+
 typedef struct message
 {
 	char ipAddress[IP_SIZE];

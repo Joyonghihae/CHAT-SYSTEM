@@ -9,14 +9,13 @@
 
 int main(void)
 {
-	int retValue = 0;
-	// initiate mutex
-	pthread_mutex_init(&mtx, NULL);
-	// start server
-	retValue = startServer();
+	// register the signal handlers
+	signal(SIGINT, serverSignalHandler);
+	signal(SIGALRM, serverAlarmHandler);
+	alarm(5);
 
-	// Destroy mutex
-	pthread_mutex_destroy(&mtx);
+	// start server
+	startServer();
 
 	return 0;
 }
