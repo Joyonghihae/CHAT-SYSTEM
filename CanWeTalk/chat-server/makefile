@@ -5,8 +5,8 @@
 # DESCRIPTION	: This makefile is to compile and link chat-server application
 
 # FINAL BINARY TARGET
-./bin/chat-server.o: ./obj/chat-server.o ./obj/serverOperation.o ./obj/common.o
-	cc ./obj/chat-server.o ./obj/serverOperation.o ./obj/common.o -o ../Common/bin/chat-server -lpthread
+./bin/chat-server.o: ./obj/chat-server.o ./obj/serverOperation.o
+	cc ./obj/chat-server.o ./obj/serverOperation.o ../Common/obj/common.o -o ../Common/bin/chat-server -lpthread
 
 # DEPENDENCIES
 ./obj/chat-server.o: ./src/chat-server.c ./inc/chat-server.h
@@ -15,12 +15,8 @@
 ./obj/serverOperation.o: ./src/serverOperation.c ./inc/chat-server.h
 	cc -c ./src/serverOperation.c -o ./obj/serverOperation.o
 
-./obj/common.o: ../Common/src/common.c ../Common/inc/common.h
-	cc -c ../Common/src/common.c -o ./obj/common.o
-
 # OTHER TARGETS
 all: ../Common/bin/chat-server
 
 clean:
-	rm ../Common/bin/chat-server
 	rm ./obj/*

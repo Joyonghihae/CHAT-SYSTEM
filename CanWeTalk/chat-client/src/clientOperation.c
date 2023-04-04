@@ -362,6 +362,7 @@ void display_win(WINDOW* win, char* tstmp, int whichRow, int shouldBlank, MESSAG
         wclrtoeol(win);     // clean the line 10
         wrefresh(win);      // update window and clean buffer
         wmove(win, (MAX_DISPLAY_LINE - 1), 1);  // move cursor to the beginning of the line for wprintw later
+        wrefresh(win);
     }
     else
     {
